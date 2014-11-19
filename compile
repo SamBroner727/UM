@@ -41,7 +41,6 @@ done
 
 case $link in
   all|um) gcc $FLAGS $LFLAGS -o um um.o \
-                alu.o ioModule.o memoryManager.o\
                   $LIBS
                   linked=yes ;;
 esac
