@@ -1,23 +1,25 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "bitpack.h"
-#include "stack.h"
 #include <stdlib.h>
 
 
 
-void initialize(FILE *fp, int* programCounter, uint32_t* registers);
-int execute(int* programCounter, uint32_t* registers);
-void newMemory(int segZeroLength);
-void initializeSegmentZero(int segZeroLength);
-void deleteMemory();
+// void initialize(FILE *fp, int* programCounter, uint32_t* registers);
+// int execute(int* programCounter, uint32_t* registers);
 
-Stack_T stack;
 
 typedef struct segment {
         uint32_t *words;
         int length;
 } segment;
+
+typedef struct stack_struct {
+        uint32_t stackSize;
+        uint32_t stackCapacity;
+        uint32_t *stack;
+} stack_struct;
+
 
 typedef struct mem_struct {
         uint32_t memorySize;
@@ -27,6 +29,8 @@ typedef struct mem_struct {
 } mem_struct;
 
 mem_struct myMem;
+stack_struct myStack;
+
 typedef struct three_regs {
         uint32_t* a;
         uint32_t* b;
@@ -34,10 +38,70 @@ typedef struct three_regs {
 } three_regs;
 
 /*
- *      expand function
+ *      initializeSegmentZero is a function that specifically
+ *      initializes array $m[0] and the sequence that
+ *      represents the segmented memory.
+ */
+static inline void initializeSegmentZero(int segZeroLength)
+{
+        
+        segment* segmentZero = malloc(sizeof(*segmentZero));
+        segmentZero->words = malloc(segZeroLength * sizeof(uint32_t));
+        segmentZero->length = segZeroLength;
+
+        myMem.memory[0] = segmentZero;
+}
+
+/*
+ *      newMemory initializes sequence memory and the stack stack
+ *      Afterwords, it is asserted that enough memory was created
+ *      and SegmentZero is initialized with the proper length.
+ */
+static inline void newMemory(int segZeroLength)
+{
+
+        myMem.memory = malloc(sizeof(segment *) * 2);
+        myMem.memoryCapacity = 2;
+
+        initializeSegmentZero(segZeroLength);
+
+        myMem.memorySize = 1;
+
+        myStack.stack = malloc(sizeof(uint32_t) * 2);
+        myStack.stackCapacity = 2;
+        myStack.stackSize = 0;
+}
+
+
+
+
+
+/*
+ *      This function will remove the sequence and free all of
+ *      the memory allocated to any remaining segments
+ */
+static inline void deleteMemory()
+{
+        // TODO : move Seq_get into a local variable... we are assuming
+        // that it's not null more often
+        for (uint32_t i = 0; i < myMem.memorySize; i++) {
+                if (myMem.memory[i] != NULL) {
+                    free((myMem.memory[i])->words);
+                    free(myMem.memory[i]);
+                }
+        }
+        free(myMem.memory);
+
+        free(myStack.stack);
+}
+
+
+
+/*
+ *      memoryExpand function
  *
  */
-static inline void expand()
+static inline void memoryExpand()
 {
         myMem.memoryCapacity = myMem.memoryCapacity * 2;
         segment* *temp = malloc(myMem.memoryCapacity * (sizeof(segment *)));
@@ -49,6 +113,24 @@ static inline void expand()
         free(myMem.memory);
 
         myMem.memory = temp;
+}
+
+/*
+ *      stackExpand function
+ *
+ */
+static inline void stackExpand()
+{
+        myStack.stackCapacity = myStack.stackCapacity * 2;
+        uint32_t *temp = malloc(myMem.memoryCapacity * (sizeof(uint32_t)));
+        
+        for (uint32_t i = 0; i < myStack.stackSize; i++) {
+            temp[i] = myStack.stack[i];
+        }
+
+        free(myStack.stack);
+
+        myStack.stack = temp;
 }
 /*
  *      Copies segment at orgin to segment at destination
@@ -83,13 +165,10 @@ static inline void replaceSegment(uint32_t originSegID, uint32_t destinationSegI
  */
 static inline uint32_t nextAvailSegId()
 {
-        if (!Stack_empty(stack)) {
-                uint32_t * tempID = (uint32_t *)Stack_pop(stack);
-                uint32_t removedId = *tempID;
-
-                free(tempID);
-
-                return removedId;
+        if (!myStack.stackSize == 0) {
+                uint32_t segId = myStack.stack[myStack.stackSize - 1];
+                myStack.stackSize--;
+                return segId;
         }
         myMem.memorySize++;
         return myMem.memorySize - 1;
@@ -107,11 +186,11 @@ static inline uint32_t nextAvailSegId()
 static inline int removeSegment(uint32_t segid)
 {
 
-        uint32_t *segid_ptr = malloc(sizeof (*segid_ptr));
-
-        *segid_ptr = segid;
-
-        Stack_push(stack, (void *) segid_ptr);
+        if(myStack.stackSize == myStack.stackCapacity) {
+                stackExpand();
+        }
+        myStack.stack[myStack.stackSize] = segid;
+        myStack.stackSize++;
 
         free((myMem.memory[segid])->words);
         free(myMem.memory[segid]);
@@ -142,7 +221,7 @@ static inline uint32_t newSegment(int length)
         uint32_t segid = nextAvailSegId();
 
         if (segid == myMem.memoryCapacity){
-            expand();
+            memoryExpand();
         }
         myMem.memory[segid] = newSeg;
 
@@ -206,7 +285,7 @@ static inline int cmov(three_regs regs)
 
 /* Segmented Load */
 static inline int sload(three_regs regs)
-{
+{       
         *(regs.a) = getWord(*(regs.b), *(regs.c));
         return 0;
 }
@@ -245,12 +324,6 @@ static inline int nand(three_regs regs)
         return 0;
 }
 
-/* Halt */
-static inline int halt(three_regs regs)
-{
-        (void) regs;
-        return 1;
-}
 
 /* Map Segment */
 static inline int map(three_regs regs)
@@ -314,75 +387,10 @@ static inline int loadv(uint32_t* regA, uint32_t value)
 }
 
 
-int main(int argc, char* argv[]) {
-
-        FILE *fp;
-
-        if (argc == 2) {
-                fp = fopen(argv[1], "rb");
-        } else {
-
-                fprintf(stderr, "Invalid File\n");
-                exit(EXIT_FAILURE);
-        }
-
-        int* pc = malloc(sizeof(int));
-        uint32_t* registers = malloc(sizeof(uint32_t) * 8);
-        
-        initialize(fp, pc, registers);
-        execute(pc, registers);
-
-        fclose(fp);
-
-        free(pc);
-        free(registers);
-
-        deleteMemory();
-
-}
 
 
 
 
-/*
- *      This will initialize and allocate memory for an array  
- *      of registers and call newMemory in the
- *      memoryManager
- *      Only segment zero of the segmented memory will be
- *      mapped and all registers are zero. Additionally the 
- *      program counter will point to $m[0][0]
- */
-void initialize(FILE *fp, int *pc, uint32_t* registers) 
-{
-
-        *pc = 0;
-
-        for (int i = 0; i < 8; i++) {
-                registers[i] = (uint32_t) 0;
-        }
-
-        fseek(fp, 0, SEEK_END);
-        int programLength = ftell(fp);
-        rewind(fp);
-
-        newMemory(programLength);
-
-        int currentLine = 0;
-        int c;
-
-        uint32_t newInstruction;
-        while((c = fgetc(fp)) != EOF) {
-                newInstruction = 0;
-                ungetc(c, fp);
-
-                newInstruction = Bitpack_newu(newInstruction, 8, 24, fgetc(fp));
-                newInstruction = Bitpack_newu(newInstruction, 8, 16, fgetc(fp));
-                newInstruction = Bitpack_newu(newInstruction, 8, 8, fgetc(fp));
-                newInstruction = Bitpack_newu(newInstruction, 8, 0, fgetc(fp));
-
-                putWord(newInstruction, 0, currentLine++);
-        }
-}
 
 /*
  *      Execute runs a loop that increments the program counter
@@ -391,7 +399,7 @@ void initialize(FILE *fp, int *pc, uint32_t* registers)
  *      This function will return an integer to indicate if the
  *      program succeeded or failed.
  */
-int execute(int* pc, uint32_t* registers)
+static inline int execute(int* pc, uint32_t* registers)
 {
 
         int program_status = 0;
@@ -445,81 +453,85 @@ int execute(int* pc, uint32_t* registers)
                         } else if (opcode == 10) {
                                 program_status = (ALUoutput(registersUsed));
                         } else if (opcode == 7) {
-                                program_status = (halt(registersUsed));
+                                program_status = 1;
                         } else if (opcode == 11) {
                                 program_status = (ALUinput(registersUsed));
                         } else {
                                 program_status =  1;
                         }
                 }
-
         }
-
         return 0;
-
 }
 
 
-
-
-
-
 /*
- *      newMemory initializes sequence memory and the stack stack
- *      Afterwords, it is asserted that enough memory was created
- *      and SegmentZero is initialized with the proper length.
+ *      This will initialize and allocate memory for an array  
+ *      of registers and call newMemory in the
+ *      memoryManager
+ *      Only segment zero of the segmented memory will be
+ *      mapped and all registers are zero. Additionally the 
+ *      program counter will point to $m[0][0]
  */
-void newMemory(int segZeroLength)
+static inline void initialize(FILE *fp, int *pc, uint32_t* registers) 
 {
 
-        myMem.memory = malloc(sizeof(segment *) * 2);
-        myMem.memoryCapacity = 2;
+        *pc = 0;
 
-        initializeSegmentZero(segZeroLength);
+        for (int i = 0; i < 8; i++) {
+                registers[i] = (uint32_t) 0;
+        }
 
-        myMem.memorySize = 1;
+        fseek(fp, 0, SEEK_END);
+        int programLength = ftell(fp);
+        rewind(fp);
 
-        stack = Stack_new();
+        newMemory(programLength);
+
+        int currentLine = 0;
+        int c;
+
+        uint32_t newInstruction;
+        while((c = fgetc(fp)) != EOF) {
+                newInstruction = 0;
+                ungetc(c, fp);
+
+                newInstruction = Bitpack_newu(newInstruction, 8, 24, fgetc(fp));
+                newInstruction = Bitpack_newu(newInstruction, 8, 16, fgetc(fp));
+                newInstruction = Bitpack_newu(newInstruction, 8, 8, fgetc(fp));
+                newInstruction = Bitpack_newu(newInstruction, 8, 0, fgetc(fp));
+
+                putWord(newInstruction, 0, currentLine++);
+        }
 }
 
+int main(int argc, char* argv[]) {
 
+        FILE *fp;
 
-/*
- *      initializeSegmentZero is a function that specifically
- *      initializes array $m[0] and the sequence that
- *      represents the segmented memory.
- */
-void initializeSegmentZero(int segZeroLength)
-{
+        if (argc == 2) {
+                fp = fopen(argv[1], "rb");
+        } else {
+
+                fprintf(stderr, "Invalid File\n");
+                exit(EXIT_FAILURE);
+        }
+
+        int* pc = malloc(sizeof(int));
+        uint32_t* registers = malloc(sizeof(uint32_t) * 8);
         
-        segment* segmentZero = malloc(sizeof(*segmentZero));
-        segmentZero->words = malloc(segZeroLength * sizeof(uint32_t));
-        segmentZero->length = segZeroLength;
+        initialize(fp, pc, registers);
+        execute(pc, registers);
 
-        myMem.memory[0] = segmentZero;
+        fclose(fp);
+
+        free(pc);
+        free(registers);
+
+        deleteMemory();
+
 }
 
-/*
- *      This function will remove the sequence and free all of
- *      the memory allocated to any remaining segments
- */
-void deleteMemory()
-{
-        // TODO : move Seq_get into a local variable... we are assuming
-        // that it's not null more often
-        for (uint32_t i = 0; i < myMem.memorySize; i++) {
-                if (myMem.memory[i] != NULL) {
-                    free((myMem.memory[i])->words);
-                    free(myMem.memory[i]);
-                }
-        }
-        free(myMem.memory);
-
-        while(!Stack_empty(stack)) {
-            free(Stack_pop(stack));
-        }
-        Stack_free(&stack);
-}
 
 
 
