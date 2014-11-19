@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "memoryManager.h"
-#include "bitpack.h"
-
 
 typedef struct three_regs {
         uint32_t* a;

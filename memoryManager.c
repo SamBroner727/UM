@@ -5,16 +5,9 @@ Speed Notes
 
 Stack:
     Struct with an int length and a uint32_t array.
-
-Sequence:
-    Struct with length, and an array of segment pointers (For our segments!)
-
-
-
 */
 
 
-Seq_T memory;
 Stack_T stack;
 
 
@@ -22,6 +15,17 @@ typedef struct segment {
         uint32_t *words;
         int length;
 } segment;
+
+typedef struct mem_struct {
+        uint32_t memorySize;
+        uint32_t memoryCapacity;
+        segment **memory;
+
+} mem_struct;
+
+void expand();
+
+mem_struct myMem;
 
 /*
  *      nextAvailSegId will keep track of a stack (Hanson 
@@ -41,7 +45,8 @@ uint32_t nextAvailSegId()
 
                 return removedId;
         }
-        return (uint32_t)Seq_length(memory);
+        myMem.memorySize++;
+        return myMem.memorySize - 1;
 }
 
 /*
@@ -52,14 +57,15 @@ uint32_t nextAvailSegId()
 extern void newMemory(int segZeroLength)
 {
 
-        memory = Seq_new(1);
-
-        stack = Stack_new();
-
-        assert(memory);
-        assert(stack);
+        myMem.memory = malloc(sizeof(segment *) * 2);
+        myMem.memoryCapacity = 2;
 
         initializeSegmentZero(segZeroLength);
+
+        myMem.memorySize = 1;
+
+        stack = Stack_new();
+        assert(stack);
 }
 
 /*
@@ -81,11 +87,10 @@ extern uint32_t newSegment(int length)
 
         uint32_t segid = nextAvailSegId();
 
-        if (segid == (uint32_t)Seq_length(memory)){
-            Seq_addhi(memory, newSeg);
-        } else {
-            Seq_put(memory, segid, newSeg);
+        if (segid == myMem.memoryCapacity){
+            expand();
         }
+        myMem.memory[segid] = newSeg;
 
         return segid;
 }
@@ -102,7 +107,7 @@ void initializeSegmentZero(int segZeroLength)
         segmentZero->words = malloc(segZeroLength * sizeof(uint32_t));
         segmentZero->length = segZeroLength;
 
-        Seq_addlo(memory, segmentZero);
+        myMem.memory[0] = segmentZero;
 }
 
 /*
@@ -113,15 +118,13 @@ extern void deleteMemory()
 {
         // TODO : move Seq_get into a local variable... we are assuming
         // that it's not null more often
-        for (int i = 0; i < Seq_length(memory); i++) {
-                if (Seq_get(memory, i) != NULL) {
-                    segment* seg_struct;
-                    seg_struct = ((segment *)Seq_get(memory, i));
-                    free(seg_struct->words);
-                    free(seg_struct);
+        for (uint32_t i = 0; i < myMem.memorySize; i++) {
+                if (myMem.memory[i] != NULL) {
+                    free((myMem.memory[i])->words);
+                    free(myMem.memory[i]);
                 }
         }
-        Seq_free(&memory);
+        free(myMem.memory);
 
         while(!Stack_empty(stack)) {
             free(Stack_pop(stack));
@@ -146,12 +149,11 @@ extern int removeSegment(uint32_t segid)
         *segid_ptr = segid;
 
         Stack_push(stack, (void *) segid_ptr);
-        
-        segment* seg_struct = (segment *)Seq_get(memory, segid);
-        free(seg_struct->words);
-        free(seg_struct);
 
-        Seq_put(memory, segid, NULL);
+        free((myMem.memory[segid])->words);
+        free(myMem.memory[segid]);
+
+        myMem.memory[segid] = NULL;
 
         return 0;
 
@@ -171,8 +173,7 @@ extern int removeSegment(uint32_t segid)
 extern int putWord(uint32_t word, uint32_t segid, uint32_t offset)
 {
 
-               segment *seg = (segment *)Seq_get(memory, segid);
-               seg->words[offset] = word;
+               (myMem.memory[segid])->words[offset] = word;
 
                return 0;
 }
@@ -187,8 +188,7 @@ extern int putWord(uint32_t word, uint32_t segid, uint32_t offset)
 extern uint32_t getWord(uint32_t segid, uint32_t offset)
 {
 
-        segment *seg = (segment *)Seq_get(memory, segid);
-        return seg->words[offset];
+        return (myMem.memory[segid])->words[offset];
 
 }
 
@@ -201,7 +201,7 @@ extern void replaceSegment(uint32_t originSegID, uint32_t destinationSegID)
 
         segment *seg_new = malloc(sizeof(*seg_new));
 
-        segment *seg_to_dup = (segment *)Seq_get(memory, originSegID);
+        segment *seg_to_dup = myMem.memory[originSegID];
 
         seg_new->words = malloc(sizeof(uint32_t) * seg_to_dup->length);
 
@@ -209,7 +209,22 @@ extern void replaceSegment(uint32_t originSegID, uint32_t destinationSegID)
             seg_new->words[i] = seg_to_dup->words[i];
         }
 
-        Seq_put(memory, destinationSegID, seg_new);
+        free((myMem.memory[destinationSegID])->words);
+        free(myMem.memory[destinationSegID]);
+
+        myMem.memory[destinationSegID] = seg_new;
 }
 
+void expand()
+{
+        myMem.memoryCapacity = myMem.memoryCapacity * 2;
+        segment* *temp = malloc(myMem.memoryCapacity * (sizeof(segment *)));
+        
+        for (uint32_t i = 0; i < myMem.memorySize; i++) {
+            temp[i] = myMem.memory[i];
+        }
 
+        free(myMem.memory);
+
+        myMem.memory = temp;
+}

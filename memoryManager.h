@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "mem.h"
-#include "seq.h"
 #include "stack.h"
 #include "assert.h"
 

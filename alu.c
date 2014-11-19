@@ -129,23 +129,26 @@ static inline int loadv(uint32_t* regA, uint32_t value)
         return 0;
 }
 
-static inline uint32_t getu(uint32_t word, unsigned width, unsigned lsb) 
-{
-        unsigned hi = lsb + width;
-        return (word <<  (32 - hi)) >> (32 - width);
-}
-
 int performOperation(uint32_t instruction, uint32_t *registers, int *pc) {
-        uint32_t opcode =  getu(instruction, 4, 28);
+        
+        uint32_t opcode = instruction;
+        
+        opcode =  instruction >> 28;
         
         if(opcode == 13) {
-                return(loadv(&(registers[getu(instruction, 3, 25)]),  getu(instruction, 25, 0))); 
+                uint32_t lreg = instruction;
+                uint32_t lval = instruction;
+                return(loadv(&(registers[((lreg << 4) >> 29)]),  (lval << 7) >> 7)); 
         } else {
+                uint32_t a = instruction;
+                uint32_t b = instruction;
+                uint32_t c = instruction;
+                
                 three_regs registersUsed;
 
-                registersUsed.a = &(registers[getu(instruction, 3, 6)]);
-                registersUsed.b = &(registers[getu(instruction, 3, 3)]);
-                registersUsed.c = &(registers[getu(instruction, 3, 0)]);
+                registersUsed.a = &(registers[(a << 23) >> 29]);
+                registersUsed.b = &(registers[(b << 26) >> 29]);
+                registersUsed.c = &(registers[(c << 29) >> 29]);
                 
                 switch(opcode)
                 {
