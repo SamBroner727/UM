@@ -7,9 +7,6 @@ Speed Notes:
 Make these static inlines into macros... at the very least do it for the 
 math ones... or the one lines ones
 
-get rid of need for instruction struct, only use the pointers to the 
-registers. 
-
 */
 
 /* Conditional Move */
@@ -132,18 +129,23 @@ static inline int loadv(uint32_t* regA, uint32_t value)
         return 0;
 }
 
+static inline uint32_t getu(uint32_t word, unsigned width, unsigned lsb) 
+{
+        unsigned hi = lsb + width;
+        return (word <<  (32 - hi)) >> (32 - width);
+}
 
 int performOperation(uint32_t instruction, uint32_t *registers, int *pc) {
-        uint32_t opcode = (uint32_t) Bitpack_getu(instruction, 4, 28);
+        uint32_t opcode =  getu(instruction, 4, 28);
         
         if(opcode == 13) {
-                return(loadv(&(registers[(uint32_t)Bitpack_getu(instruction, 3, 25)]), (uint32_t) Bitpack_getu(instruction, 25, 0))); 
+                return(loadv(&(registers[getu(instruction, 3, 25)]),  getu(instruction, 25, 0))); 
         } else {
                 three_regs registersUsed;
 
-                registersUsed.a = &(registers[(uint32_t) Bitpack_getu(instruction, 3, 6)]);
-                registersUsed.b = &(registers[(uint32_t) Bitpack_getu(instruction, 3, 3)]);
-                registersUsed.c = &(registers[(uint32_t) Bitpack_getu(instruction, 3, 0)]);
+                registersUsed.a = &(registers[getu(instruction, 3, 6)]);
+                registersUsed.b = &(registers[getu(instruction, 3, 3)]);
+                registersUsed.c = &(registers[getu(instruction, 3, 0)]);
                 
                 switch(opcode)
                 {
