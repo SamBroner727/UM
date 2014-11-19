@@ -11,12 +11,12 @@ typedef struct three_regs {
         uint32_t* c;
 } three_regs;
 
-typedef struct instruction_struct {
-        uint32_t opcode;
-        uint32_t a;
-        uint32_t b;
-        uint32_t c;
-} instruction_struct;
+// typedef struct instruction_struct {
+//         uint32_t opcode;
+//         uint32_t a;
+//         uint32_t b;
+//         uint32_t c;
+// } instruction_struct;
 
 /*
  *      performOperation will call interpretInstruction to
@@ -34,7 +34,7 @@ int performOperation(uint32_t instruction, uint32_t *registers, int *pc);
  *      interpretInstruction then puts these into a struct and
  *      returns it.
  */
-instruction_struct interpretInstruction(uint32_t instruction);
+// instruction_struct interpretInstruction(uint32_t instruction);
 
 
 

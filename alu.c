@@ -134,52 +134,56 @@ static inline int loadv(uint32_t* regA, uint32_t value)
 
 
 int performOperation(uint32_t instruction, uint32_t *registers, int *pc) {
-        instruction_struct instructionVals = interpretInstruction(instruction);
+        //instruction_struct instructionVals = interpretInstruction(instruction);
+
+        uint32_t opcode = (uint32_t) Bitpack_getu(instruction, 4, 28);
         
-        three_regs registersUsed;
+        if(opcode == 13) {
+                // uint32_t regA;
+                // uint32_t value;
 
-        registersUsed.a = &(registers[instructionVals.a]);
-        registersUsed.b = &(registers[instructionVals.b]);
-        registersUsed.c = &(registers[instructionVals.c]);
+                // regA = ;
+                // value = (uint32_t) Bitpack_getu(instruction, 25, 0);
 
-        // used in case 13
-        uint32_t regA;
-        uint32_t value;
+                return(loadv(&(registers[(uint32_t)Bitpack_getu(instruction, 3, 25)]), (uint32_t) Bitpack_getu(instruction, 25, 0))); 
+        } else {
+                three_regs registersUsed;
 
-        switch(instructionVals.opcode)
-        {
-                case 0:
-                        return(cmov(registersUsed));
-                case 1:
-                        return(sload(registersUsed));
-                case 2:
-                        return(sstore(registersUsed));
-                case 3:
-                        return(add(registersUsed));
-                case 4:
-                        return(mult(registersUsed));
-                case 5:
-                        return(divide(registersUsed));
-                case 6:
-                        return(nand(registersUsed));
-                case 7:
-                        return(halt(registersUsed));
-                case 8:
-                        return(map(registersUsed));
-                case 9:
-                        return(unmap(registersUsed));
-                case 10:
-                        return(ALUoutput(registersUsed));
-                case 11:
-                        return(ALUinput(registersUsed));
-                case 12:
-                        return(loadp(registersUsed, pc));
-                case 13:
-                        regA = (uint32_t)Bitpack_getu(instruction, 3, 25);
-                        value = (uint32_t) Bitpack_getu(instruction, 25, 0);
-                        return(loadv(&(registers[regA]), value));
-                default:
-                        return 1;
+                registersUsed.a = &(registers[(uint32_t) Bitpack_getu(instruction, 3, 6)]);
+                registersUsed.b = &(registers[(uint32_t) Bitpack_getu(instruction, 3, 3)]);
+                registersUsed.c = &(registers[(uint32_t) Bitpack_getu(instruction, 3, 0)]);
+                
+                switch(opcode)
+                {
+                        case 0:
+                                return(cmov(registersUsed));
+                        case 1:
+                                return(sload(registersUsed));
+                        case 2:
+                                return(sstore(registersUsed));
+                        case 3:
+                                return(add(registersUsed));
+                        case 4:
+                                return(mult(registersUsed));
+                        case 5:
+                                return(divide(registersUsed));
+                        case 6:
+                                return(nand(registersUsed));
+                        case 7:
+                                return(halt(registersUsed));
+                        case 8:
+                                return(map(registersUsed));
+                        case 9:
+                                return(unmap(registersUsed));
+                        case 10:
+                                return(ALUoutput(registersUsed));
+                        case 11:
+                                return(ALUinput(registersUsed));
+                        case 12:
+                                return(loadp(registersUsed, pc));
+                        default:
+                                return 1;
+                }
         }
 }
 
@@ -190,17 +194,17 @@ int performOperation(uint32_t instruction, uint32_t *registers, int *pc) {
  *      interpretInstruction then puts these into a struct and
  *      returns it.
  */
-instruction_struct interpretInstruction(uint32_t instruction)
-{
-        instruction_struct instructions;
+// instruction_struct interpretInstruction(uint32_t instruction)
+// {
+//         instruction_struct instructions;
 
-        instructions.opcode = (uint32_t) Bitpack_getu(instruction, 4, 28);
-        instructions.a = (uint32_t) Bitpack_getu(instruction, 3, 6);
-        instructions.b = (uint32_t) Bitpack_getu(instruction, 3, 3);
-        instructions.c = (uint32_t) Bitpack_getu(instruction, 3, 0);
+//         instructions.opcode = (uint32_t) Bitpack_getu(instruction, 4, 28);
+//         instructions.a = (uint32_t) Bitpack_getu(instruction, 3, 6);
+//         instructions.b = (uint32_t) Bitpack_getu(instruction, 3, 3);
+//         instructions.c = (uint32_t) Bitpack_getu(instruction, 3, 0);
 
-        return instructions;
-}
+//         return instructions;
+// }
 
 
 
