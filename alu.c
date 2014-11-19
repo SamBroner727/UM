@@ -133,7 +133,7 @@ int performOperation(uint32_t instruction, uint32_t *registers, int *pc) {
         
         uint32_t opcode = instruction;
         
-        opcode =  instruction >> 28;
+        opcode =  opcode >> 28;
         
         if(opcode == 13) {
                 uint32_t lreg = instruction;

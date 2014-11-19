@@ -169,7 +169,6 @@ extern int removeSegment(uint32_t segid)
  *      the index requested is out of bounds this function will
  *      call an error
  */
- //c, a, b
 extern int putWord(uint32_t word, uint32_t segid, uint32_t offset)
 {
 
