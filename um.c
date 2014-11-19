@@ -9,10 +9,11 @@ void initialize(FILE *fp, int* programCounter, uint32_t* registers);
 int execute(int* programCounter, uint32_t* registers);
 
 typedef struct three_regs {
-        uint32_t* a;
-        uint32_t* b;
-        uint32_t* c;
+        uint32_t a;
+        uint32_t b;
+        uint32_t c;
 } three_regs;
+
 
 /* Conditional Move */
 static inline int cmov(three_regs regs)
@@ -148,15 +149,13 @@ int main(int argc, char* argv[]) {
         }
 
         int* pc = malloc(sizeof(int));
-        uint32_t* registers = malloc(sizeof(uint32_t) * 8);
         
-        initialize(fp, pc, registers);
-        execute(pc, registers);
+        initialize(fp, pc);
+        execute(pc);
 
         fclose(fp);
 
         free(pc);
-        free(registers);
 
         deleteMemory();
 
@@ -173,14 +172,11 @@ int main(int argc, char* argv[]) {
  *      mapped and all registers are zero. Additionally the 
  *      program counter will point to $m[0][0]
  */
-void initialize(FILE *fp, int *pc, uint32_t* registers) 
+void initialize(FILE *fp, int *pc) 
 {
 
         *pc = 0;
 
-        for (int i = 0; i < 8; i++) {
-                registers[i] = (uint32_t) 0;
-        }
 
         fseek(fp, 0, SEEK_END);
         int programLength = ftell(fp);
@@ -197,17 +193,22 @@ void initialize(FILE *fp, int *pc, uint32_t* registers)
  *      This function will return an integer to indicate if the
  *      program succeeded or failed.
  */
-int execute(int* pc, uint32_t* registers)
+int execute(int* pc)
 {
 
         int program_status = 0;
+
+        uint32_t* registers = malloc(sizeof(uint32_t) * 8);
+
+        for (int i = 0; i < 8; i++) {
+                registers[i] = (uint32_t) 0;
+        }
 
 
         while(program_status != 1) {
 
                 *pc += 1;
-                // program_status = performOperation(getWord(0, *pc - 1), 
-                //                         registers, pc);
+
 
                 uint32_t instruction = getWord(0, *pc - 1);
                 
@@ -228,55 +229,45 @@ int execute(int* pc, uint32_t* registers)
                         registersUsed.a = &(registers[(a << 23) >> 29]);
                         registersUsed.b = &(registers[(b << 26) >> 29]);
                         registersUsed.c = &(registers[(c << 29) >> 29]);
+
+                        registersUsed.a = (a << 23) >> 29;
+                        registersUsed.b = (b << 26) >> 29;
+                        registersUsed.c = (c << 29) >> 29;
                         
-                        switch(opcode)
-                        {
-                                case 0:
-                                        program_status = (cmov(registersUsed));
-                                        break;
-                                case 1:
-                                        program_status = (sload(registersUsed));
-                                        break;
-                                case 2:
-                                        program_status = (sstore(registersUsed));
-                                        break;
-                                case 3:
-                                        program_status = (add(registersUsed));
-                                        break;
-                                case 4:
-                                        program_status = (mult(registersUsed));
-                                        break;
-                                case 5:
-                                        program_status = (divide(registersUsed));
-                                        break;
-                                case 6:
-                                        program_status = (nand(registersUsed));
-                                        break;
-                                case 7:
-                                        program_status = (halt(registersUsed));
-                                        break;
-                                case 8:
-                                        program_status = (map(registersUsed));
-                                        break;
-                                case 9:
-                                        program_status = (unmap(registersUsed));
-                                        break;
-                                case 10:
-                                        program_status = (ALUoutput(registersUsed));
-                                        break;
-                                case 11:
-                                        program_status = (ALUinput(registersUsed));
-                                        break;
-                                case 12:
-                                        program_status = (loadp(registersUsed, pc));
-                                        break;
-                                default:
-                                        program_status =  1;
+                        if(opcode == 1) {
+                                program_status = (sload(registersUsed));
+                        } else if (opcode == 2){
+                                program_status = (sstore(registersUsed));
+                        } else if (opcode == 6) {
+                                program_status = (nand(registersUsed));
+                        } else if (opcode == 12) {
+                                program_status = (loadp(registersUsed, pc));
+                        } else if(opcode == 3) {
+                                program_status = (add(registersUsed));
+                        } else if(opcode == 0) {
+                                program_status = (cmov(registersUsed));
+                        } else if (opcode == 8) {
+                                program_status = (map(registersUsed));
+                        } else if (opcode == 9) {
+                                program_status = (unmap(registersUsed));
+                        } else if (opcode == 5) {
+                                program_status = (divide(registersUsed));
+                        } else if (opcode == 4) {
+                                program_status = (mult(registersUsed));
+                        } else if (opcode == 10) {
+                                program_status = (ALUoutput(registersUsed));
+                        } else if (opcode == 7) {
+                                program_status = (halt(registersUsed));
+                        } else if (opcode == 11) {
+                                program_status = (ALUinput(registersUsed));
+                        } else {
+                                program_status =  1;
                         }
                 }
 
         }
 
+        free(registers);
         return 0;
 
 }
