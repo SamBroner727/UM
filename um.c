@@ -246,8 +246,9 @@ int execute(int* pc)
                                 if (tempid != 0) {
                                         registers[b] = tempid;
                                         program_status = 0;
+                                } else {
+                                        program_status = 1;
                                 }
-                                program_status = 1;
                         } else if (opcode == 9) {
                                 program_status = removeSegment(registers[c]);
                         } else if (opcode == 5) {
