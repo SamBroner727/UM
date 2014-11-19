@@ -134,17 +134,9 @@ static inline int loadv(uint32_t* regA, uint32_t value)
 
 
 int performOperation(uint32_t instruction, uint32_t *registers, int *pc) {
-        //instruction_struct instructionVals = interpretInstruction(instruction);
-
         uint32_t opcode = (uint32_t) Bitpack_getu(instruction, 4, 28);
         
         if(opcode == 13) {
-                // uint32_t regA;
-                // uint32_t value;
-
-                // regA = ;
-                // value = (uint32_t) Bitpack_getu(instruction, 25, 0);
-
                 return(loadv(&(registers[(uint32_t)Bitpack_getu(instruction, 3, 25)]), (uint32_t) Bitpack_getu(instruction, 25, 0))); 
         } else {
                 three_regs registersUsed;
@@ -186,26 +178,3 @@ int performOperation(uint32_t instruction, uint32_t *registers, int *pc) {
                 }
         }
 }
-
-/*
- *      interpretInstruction will unpack the given uint32_t 
- *      instruction and split it into an opcode, and three
- *      registers (a, b, and c.)
- *      interpretInstruction then puts these into a struct and
- *      returns it.
- */
-// instruction_struct interpretInstruction(uint32_t instruction)
-// {
-//         instruction_struct instructions;
-
-//         instructions.opcode = (uint32_t) Bitpack_getu(instruction, 4, 28);
-//         instructions.a = (uint32_t) Bitpack_getu(instruction, 3, 6);
-//         instructions.b = (uint32_t) Bitpack_getu(instruction, 3, 3);
-//         instructions.c = (uint32_t) Bitpack_getu(instruction, 3, 0);
-
-//         return instructions;
-// }
-
-
-
-
